@@ -12,12 +12,9 @@ class EnumField(six.with_metaclass(models.SubfieldBase, models.IntegerField)):
     """
 
     def __init__(self, enum, *args, **kwargs):
-        default = kwargs.get('default')
         kwargs['choices'] = enum.choices()
-        if not default:
+        if 'default' not in kwargs:
             kwargs['default'] = enum.default()
-        if 'db_index' not in kwargs:
-            kwargs['db_index'] = True
         self.enum = enum
         models.IntegerField.__init__(self, *args, **kwargs)
 
@@ -79,7 +76,5 @@ class EnumField(six.with_metaclass(models.SubfieldBase, models.IntegerField)):
 
     def deconstruct(self):
         name, path, args, kwargs = super(EnumField, self).deconstruct()
-        path = "django.db.models.fields.IntegerField"
-        if 'choices' in kwargs:
-            del kwargs['choices']
+        kwargs['enum'] = self.enum
         return name, path, args, kwargs
