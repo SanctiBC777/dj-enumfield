@@ -87,7 +87,6 @@ class EnumFieldTest(TestCase):
         class PersonForm(ModelForm):
             class Meta:
                 model = Person
-                fields = ('status',)
 
         request_factory = RequestFactory()
         request = request_factory.post('', data={'status': '2'})
@@ -100,6 +99,24 @@ class EnumFieldTest(TestCase):
         request = request_factory.post('', data={'status': '99'})
         form = PersonForm(request.POST, instance=person)
         self.assertFalse(form.is_valid())
+
+    def test_enum_field_nullable_field(self):
+        class BeerForm(ModelForm):
+            class Meta:
+                model = Beer
+
+        form = BeerForm()
+
+        self.assertEqual(len(form.fields['style'].choices), 3)
+        self.assertEqual(form.fields['style'].choices[0][1].label, 'LAGER')
+        self.assertEqual(form.fields['style'].choices[1][1].label, 'STOUT')
+        self.assertEqual(form.fields['style'].choices[2][1].label, 'WEISSBIER')
+
+        self.assertEqual(len(form.fields['state'].choices), 4)
+        self.assertEqual(form.fields['state'].choices[0][1].label, '')
+        self.assertEqual(form.fields['state'].choices[1][1].label, 'FIZZY')
+        self.assertEqual(form.fields['state'].choices[2][1].label, 'STALE')
+        self.assertEqual(form.fields['state'].choices[3][1].label, 'EMPTY')
 
 
 class EnumTest(TestCase):
