@@ -19,9 +19,10 @@ class PersonStatus(Enum):
     ALIVE = 1
     DEAD = 2
     REANIMATED = 3
+    VOID = 4
 
     _transitions = {
-        UNBORN: (),
+        UNBORN: (VOID,),
         ALIVE: (UNBORN,),
         DEAD: (UNBORN, ALIVE),
         REANIMATED: (DEAD,)
@@ -50,7 +51,7 @@ class BeerState(Enum):
 
 class Beer(models.Model):
     style = EnumField(BeerStyle)
-    state = EnumField(BeerState, null=True, blank=True)
+    state = EnumField(BeerState, null=True)
 
 
 class LabelBeer(Enum):
