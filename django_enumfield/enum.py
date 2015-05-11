@@ -66,15 +66,12 @@ class Enum(six.with_metaclass(EnumType)):
             return path, (self.name, self.value, self.label, self.enum_type), {}
 
     @classmethod
-    def choices(cls, blank=False):
+    def choices(cls):
         """ Choices for Enum
         :return: List of tuples (<value>, <human-readable value>)
         :rtype: list
         """
-        choices = sorted([(key, value) for key, value in cls.values.items()], key=lambda x: x[0])
-        if blank:
-            choices.insert(0, ('', Enum.Value('', None, '', cls)))
-        return choices
+        return sorted([(key, value) for key, value in cls.values.items()], key=lambda x: x[0])
 
     @classmethod
     def default(cls):
@@ -152,7 +149,10 @@ class Enum(six.with_metaclass(EnumType)):
         :return: Success flag
         :rtype: bool
         """
-        return from_value == to_value or from_value in cls.transition_origins(to_value)
+        try:
+            return from_value == to_value or from_value in cls.transition_origins(to_value)
+        except KeyError:
+            return False
 
     @classmethod
     def transition_origins(cls, to_value):
