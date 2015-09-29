@@ -7,7 +7,7 @@ from django.utils import six
 from django_enumfield.db.fields import EnumField
 from django_enumfield.enum import Enum
 from django_enumfield.exceptions import InvalidStatusOperationError
-from django_enumfield.tests.models import Person, PersonStatus, Lamp, LampState, Beer, BeerStyle, BeerState
+from django_enumfield.tests.models import Person, PersonStatus, Lamp, LampState, Beer, BeerStyle, BeerState, LabelBeer
 
 
 class EnumFieldTest(TestCase):
@@ -38,10 +38,12 @@ class EnumFieldTest(TestCase):
         self.assertEqual(person.status, PersonStatus.ALIVE)
         person.status = PersonStatus.DEAD
         person.save()
+        self.assertTrue(isinstance(person.status, int))
         self.assertEqual(person.status, PersonStatus.DEAD)
 
         person = Person.objects.get(pk=pk)
         self.assertEqual(person.status, PersonStatus.DEAD)
+        self.assertTrue(isinstance(person.status, int))
 
         self.assertRaises(InvalidStatusOperationError, setattr, person, 'status', 99)
 
@@ -120,17 +122,20 @@ class EnumFieldTest(TestCase):
 
 
 class EnumTest(TestCase):
+    def test_label(self):
+        self.assertEqual(PersonStatus.label(PersonStatus.ALIVE), six.text_type('ALIVE'))
+
     def test_name(self):
-        self.assertEqual(PersonStatus.ALIVE.name, six.text_type('ALIVE'))
+        self.assertEqual(PersonStatus.name(PersonStatus.ALIVE), six.text_type('ALIVE'))
 
     def test_get(self):
-        self.assertTrue(isinstance(PersonStatus.get(PersonStatus.ALIVE), Enum))
-        self.assertTrue(isinstance(PersonStatus.get(six.text_type('ALIVE')), Enum))
+        self.assertTrue(isinstance(PersonStatus.get(PersonStatus.ALIVE), Enum.Value))
+        self.assertTrue(isinstance(PersonStatus.get(six.text_type('ALIVE')), Enum.Value))
         self.assertEqual(PersonStatus.get(PersonStatus.ALIVE), PersonStatus.get(six.text_type('ALIVE')))
 
     def test_choices(self):
         self.assertEqual(len(PersonStatus.choices()), len(list(PersonStatus.items())))
-        self.assertTrue(all(key in PersonStatus.__members__ for key in dict(list(PersonStatus.items()))))
+        self.assertTrue(all(key in PersonStatus.__dict__ for key in dict(list(PersonStatus.items()))))
 
     def test_default(self):
         self.assertEqual(PersonStatus.default(), PersonStatus.UNBORN)
@@ -142,3 +147,9 @@ class EnumTest(TestCase):
         self.assertTrue(PersonStatus.ALIVE == PersonStatus.ALIVE)
         self.assertFalse(PersonStatus.ALIVE == PersonStatus.DEAD)
         self.assertEqual(PersonStatus.get(PersonStatus.ALIVE), PersonStatus.get(PersonStatus.ALIVE))
+
+    def test_labels(self):
+        self.assertEqual(LabelBeer.name(LabelBeer.JUPILER), LabelBeer.label(LabelBeer.JUPILER))
+        self.assertNotEqual(LabelBeer.name(LabelBeer.STELLA), LabelBeer.label(LabelBeer.STELLA))
+        self.assertTrue(isinstance(LabelBeer.label(LabelBeer.STELLA), six.string_types))
+        self.assertEqual(LabelBeer.label(LabelBeer.STELLA), six.text_type('Stella Artois'))
