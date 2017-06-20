@@ -67,12 +67,9 @@ setup(
     license='MIT',
     classifiers=[
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
         'Framework :: Django',
         "Natural Language :: English",
         "Environment :: Web Environment",
@@ -87,4 +84,12 @@ setup(
     packages=packages,
     tests_require=['Django'],
     test_suite='run_tests.main',
+    extras_require={
+        ':python_version=="2.6"': ['enum34'],
+        ':python_version=="2.7"': ['enum34'],
+        ':python_version=="3.0"': ['enum34'],
+        ':python_version=="3.1"': ['enum34'],
+        ':python_version=="3.2"': ['enum34'],
+        ':python_version=="3.3"': ['enum34'],
+    }
 )
