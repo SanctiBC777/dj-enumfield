@@ -19,7 +19,7 @@ class ValidatorTest(unittest.TestCase):
         """Test passing an int as a string validation
         """
         self.assertIsNone(
-            validate_available_choice(BeerStyle, '%s' % BeerStyle.LAGER.value)
+            validate_available_choice(BeerStyle, '%s' % BeerStyle.LAGER)
         )
 
     def test_validate_available_choice_3(self):
