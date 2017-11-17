@@ -1,72 +1,33 @@
-from enum import Enum
-
-from django.db import models
-from django.utils.functional import curry
-from django.utils.encoding import force_text
-from django.utils import six
-from django import forms
 import django
+from django.db import models
+from django import forms
+from django.utils import six
 
-from .. import validators
+from django_enumfield import validators
 
 
 if django.VERSION < (1, 8):
-    base = six.with_metaclass(models.SubfieldBase, models.Field)
+    base_class = six.with_metaclass(models.SubfieldBase, models.IntegerField)
 else:
-    base = models.Field
+    base_class = models.IntegerField
 
 
-class EnumField(base):
+class EnumField(base_class):
     """ EnumField is a convenience field to automatically handle validation of transitions
         between Enum values and set field choices from the enum.
         EnumField(MyEnum, default=MyEnum.INITIAL)
     """
-    default_error_messages = models.IntegerField.default_error_messages
 
     def __init__(self, enum, *args, **kwargs):
         kwargs['choices'] = enum.choices()
-        if enum.default() is not None:
-            kwargs.setdefault('default', enum.default())
+        if 'default' not in kwargs:
+            kwargs['default'] = enum.default()
         self.enum = enum
-        super(EnumField, self).__init__(self, *args, **kwargs)
-
-    def get_default(self):
-        if callable(self.default):
-            return self.default()
-        return self.default
-
-    def get_internal_type(self):
-        return "IntegerField"
+        models.IntegerField.__init__(self, *args, **kwargs)
 
     def contribute_to_class(self, cls, name, virtual_only=False):
         super(EnumField, self).contribute_to_class(cls, name)
-        if self.choices:
-            setattr(cls, 'get_%s_display' % self.name,
-                    curry(self._get_FIELD_display))
         models.signals.class_prepared.connect(self._setup_validation, sender=cls)
-
-    def _get_FIELD_display(self, cls):
-        value = getattr(cls, self.attname)
-        return force_text(value.label, strings_only=True)
-
-    def get_prep_value(self, value):
-        value = super(EnumField, self).get_prep_value(value)
-        if value is None:
-            return value
-
-        if isinstance(value, Enum):
-            return value.value
-        return int(value)
-
-    def from_db_value(self, value, expression, connection, context):
-        if value is not None:
-            return self.enum.get(value)
-
-        return value
-
-    def to_python(self, value):
-        if value is not None:
-            return self.enum.get(value)
 
     def _setup_validation(self, sender, **kwargs):
         """
@@ -78,8 +39,6 @@ class EnumField(base):
         enum = self.enum
 
         def set_enum(self, new_value):
-            if isinstance(new_value, models.NOT_PROVIDED):
-                new_value = None
             if hasattr(self, private_att_name):
                 # Fetch previous value from private enum attribute.
                 old_value = getattr(self, private_att_name)
@@ -87,10 +46,7 @@ class EnumField(base):
                 # First setattr no previous value on instance.
                 old_value = new_value
             # Update private enum attribute with new value
-            if new_value is not None and not isinstance(new_value, Enum):
-                new_value = enum.get(new_value)
             setattr(self, private_att_name, new_value)
-            self.__dict__[att_name] = new_value
             # Run validation for new value.
             validators.validate_valid_transition(enum, old_value, new_value)
 
@@ -98,7 +54,6 @@ class EnumField(base):
             return getattr(self, private_att_name)
 
         def delete_enum(self):
-            self.__dict__[att_name] = None
             return setattr(self, private_att_name, None)
 
         if not sender._meta.abstract:
@@ -128,6 +83,10 @@ class EnumField(base):
 
     def deconstruct(self):
         name, path, args, kwargs = super(EnumField, self).deconstruct()
-        kwargs['enum'] = self.enum
-        del kwargs['verbose_name']
+        if django.VERSION >= (1, 9):
+            kwargs['enum'] = self.enum
+        else:
+            path = "django.db.models.fields.IntegerField"
+        if 'choices' in kwargs:
+            del kwargs['choices']
         return name, path, args, kwargs
