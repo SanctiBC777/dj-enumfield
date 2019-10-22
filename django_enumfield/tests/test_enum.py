@@ -1,11 +1,11 @@
 from contextlib import contextmanager
 from os.path import abspath, dirname, exists, join
 
-from django import forms
 from django.core.management import call_command
 from django.db import IntegrityError, connection
 from django.db.backends.sqlite3.base import DatabaseWrapper
 from django.db.models.fields import NOT_PROVIDED
+from django.forms import ModelForm, TypedChoiceField
 from django.test import TestCase
 from django.test.client import RequestFactory
 from django.utils import six
@@ -13,7 +13,6 @@ from django.utils import six
 from django_enumfield.db.fields import EnumField
 from django_enumfield.enum import BlankEnum, Enum
 from django_enumfield.exceptions import InvalidStatusOperationError
-from django_enumfield.forms.fields import EnumChoiceField
 from django_enumfield.tests.models import (
     Beer,
     BeerState,
@@ -58,12 +57,6 @@ def patch_sqlite_connection():
     finally:
         DatabaseWrapper.enable_constraint_checking = old_enable
         DatabaseWrapper.disable_constraint_checking = old_disable
-
-
-class PersonForm(forms.ModelForm):
-    class Meta:
-        model = Person
-        fields = ("status",)
 
 
 class EnumFieldTest(TestCase):
@@ -158,10 +151,15 @@ class EnumFieldTest(TestCase):
         self.assertEqual(beer.style, BeerStyle.STOUT)
 
     def test_enum_field_modelform_create(self):
+        class PersonForm(ModelForm):
+            class Meta:
+                model = Person
+                fields = ("status",)
+
         request_factory = RequestFactory()
         request = request_factory.post("", data={"status": "2"})
         form = PersonForm(request.POST)
-        self.assertTrue(isinstance(form.fields["status"], forms.TypedChoiceField))
+        self.assertTrue(isinstance(form.fields["status"], TypedChoiceField))
         self.assertTrue(form.is_valid())
         person = form.save()
         self.assertTrue(person.status, PersonStatus.DEAD)
@@ -173,10 +171,15 @@ class EnumFieldTest(TestCase):
     def test_enum_field_modelform(self):
         person = Person.objects.create()
 
+        class PersonForm(ModelForm):
+            class Meta:
+                model = Person
+                fields = ("status",)
+
         request_factory = RequestFactory()
         request = request_factory.post("", data={"status": "2"})
         form = PersonForm(request.POST, instance=person)
-        self.assertTrue(isinstance(form.fields["status"], forms.TypedChoiceField))
+        self.assertTrue(isinstance(form.fields["status"], TypedChoiceField))
         self.assertTrue(form.is_valid())
         form.save()
         self.assertTrue(person.status, PersonStatus.DEAD)
@@ -185,17 +188,8 @@ class EnumFieldTest(TestCase):
         form = PersonForm(request.POST, instance=person)
         self.assertFalse(form.is_valid())
 
-    def test_enum_field_modelform_initial(self):
-        person = Person.objects.create()
-        form = PersonForm(instance=person)
-        self.assertEqual(form.fields["status"].initial, PersonStatus.ALIVE.value)
-        self.assertIn(
-            u'<option value="{}" selected'.format(PersonStatus.ALIVE.value),
-            six.text_type(form["status"]),
-        )
-
     def test_enum_field_nullable_field(self):
-        class BeerForm(forms.ModelForm):
+        class BeerForm(ModelForm):
             class Meta:
                 model = Beer
                 fields = ("style", "state")
@@ -224,41 +218,6 @@ class EnumFieldTest(TestCase):
         with patch_sqlite_connection():
             call_command("sqlmigrate", "tests", "0001")
 
-    def test_enum_form_field(self):
-        class CustomPersonForm(forms.Form):
-            status = EnumChoiceField(PersonStatus)
-
-        form = CustomPersonForm(initial={"status": PersonStatus.DEAD})
-        self.assertEqual(form["status"].initial, PersonStatus.DEAD.value)
-        self.assertIn(
-            u'<option value="{}" selected'.format(PersonStatus.DEAD.value),
-            six.text_type(form["status"]),
-        )
-        self.assertEqual(form.fields["status"].choices, PersonStatus.choices())
-
-        # Test validation
-
-        form = CustomPersonForm(
-            data={"status": six.text_type(PersonStatus.ALIVE.value)},
-            initial={"status": PersonStatus.DEAD.value},
-        )
-        self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["status"], PersonStatus.ALIVE)
-
-    def test_enum_form_field_not_required(self):
-        class CustomPersonForm(forms.Form):
-            status = EnumChoiceField(PersonStatus, required=False)
-
-        form = CustomPersonForm(
-            data={"status": None}, initial={"status": PersonStatus.DEAD.value}
-        )
-        self.assertEqual(
-            form.fields["status"].choices, PersonStatus.choices(blank=True)
-        )
-        self.assertIn(u'<option value="" selected', six.text_type(form["status"]))
-        self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data["status"], six.text_type())
-
 
 class EnumTest(TestCase):
     def test_label(self):
@@ -266,6 +225,12 @@ class EnumTest(TestCase):
         self.assertEqual(LabelBeer.STELLA.label, six.text_type("Stella Artois"))
         self.assertEqual(
             LabelBeer.label(LabelBeer.STELLA), six.text_type("Stella Artois")
+        )
+
+        # Same as when coercing to string
+        self.assertEqual(six.text_type(PersonStatus.ALIVE), six.text_type("ALIVE"))
+        self.assertEqual(
+            six.text_type(LabelBeer.STELLA), six.text_type("Stella Artois")
         )
 
     def test_name(self):
