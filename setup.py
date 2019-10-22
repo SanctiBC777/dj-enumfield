@@ -106,13 +106,6 @@ setup(
         ':python_version=="3.1"': ["enum34"],
         ':python_version=="3.2"': ["enum34"],
         ':python_version=="3.3"': ["enum34"],
-        "dev": [
-            "black",
-            "isort",
-            "Django",
-            "mypy",
-            "django-stubs",
-            "djangorestframework-stubs",
-        ],
+        "dev": ["black", "isort", "Django", "mypy", "django-stubs", "djangorestframework-stubs"],
     },
 )
